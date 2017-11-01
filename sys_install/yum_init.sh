@@ -4,7 +4,7 @@
 
 yum install -y apr* autoconf automake bison cloog-ppl compat* cpp curl curl-devel \
 fontconfig fontconfig-devel freetype freetype* freetype-devel gcc gcc-c++ gd \
-gettext gettext-devel glibc kernel kernel-headers keyutils keyutils-libs-devel \
+gettext gettext-devel glibc keyutils keyutils-libs-devel \
 krb5-devel libcom_err-devel libpng* libjpeg* libsepol-devel libselinux-devel \
 libstdc++-devel libtool* libgomp libxml2 libxml2-devel libXpm* libtiff libtiff* \
 libX* libxml* make mpfr ncurses* ntp openssl openssl-devel patch pcre-devel perl \
