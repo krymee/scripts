@@ -1,0 +1,57 @@
+
+
+docker load < /data/mysql-backup-data/docker-img/alphine.dimg
+docker load < /data/mysql-backup-data/docker-img/mysql.dimg
+#允许容器使用网络文件系统
+semanage permissive -a nfsd_t
+#
+#semanage permissive -a svirt_lxc_net_t
+
+#创建数据卷gameid为游戏标号，比如xz,small
+mkdir -p /data/mysql-backup-data/${gameid} /var/lib/docker-mysql/${gameid}    #按服务的优先级来决定使用机械盘或固态盘
+cp -a  /etc/docker-mysql-config/${gameid}.cnf /etc/docker-mysql-config/${gameid}.cnf  # 拷贝一个现有的配置文件
+
+#不需要/data
+docker run --detach -v /tmp:/tmp:rw -v /var/lib/docker-mysql/${gameid}:/var/lib/mysql:rw -v /etc/docker-mysql-config/${gameid}.cnf:/etc/my.cnf:ro --name ${gameid}-data alpine /bin/sh
+
+#需要/data
+docker run --detach -v /tmp:/tmp:rw -v /var/lib/docker-mysql/${gameid}:/var/lib/mysql:rw -v /data/mysql-backup-data/${gameid}:/data:rw -v /etc/docker-mysql-config/${gameid}.cnf:/etc/my.cnf:ro --name ${gameid}-data alpine /bin/sh
+
+#selinux规则
+setsebool virt_use_nfs on
+chcon -Rt svirt_sandbox_file_t /data/mysql-backup-data/${gameid}
+restorecon /data/mysql/${gameid}
+
+#不映射IP地址 启动数据库
+docker run --detach --memory 8g --volumes-from ${gameid}-data --name ${gameid} -h ${gameid} weskiller/mysql:percona-5.6
+
+docker run -itd --memory 8g --volumes-from ${gameid}-data --name ${gameid} -h ${gameid} weskiller/mysql:percona-5.6 init   #可以使用systemd服务
+
+	
+#映射IP地址 启动数据库  # 使用内存依据配置文件里的cache大小来决定
+docker run --detach --memory 8g --volumes-from ${gameid}-data --name ${gameid} -h ${gameid} -p 192.168.20.xx:3306:3306 weskiller/mysql:percona-5.6
+
+docker run --detach --memory 8g --volumes-from ${gameid}-data --name ${gameid} -h ${gameid} -p 192.168.0.187:3306:3306 weskiller/mysql:percona-5.6
+
+docker run -itd --memory 8g --volumes-from ${gameid}-data --name ${gameid} -h ${gameid} -p 192.168.0.200:3306:3306 weskiller/mysql:percona-5.6 init
+
+
+
+#进入容器
+docker exec -it ${gameid} /bin/bash
+
+#主从
+GRANT all privileges ON *.* TO 'sync'@'%' IDENTIFIED BY 'jiuwan@ms';
+change master to master_host='192.168.20.XX',
+master_port=3306,
+master_user='sync',
+master_password='jiuwan@ms', 
+master_log_file='master-bin.000001',
+master_log_pos=0;
+
+
+# 在数据库中新建一个用户
+grant all privileges on *.* to pgame@'%' identified  by 'WEB2008';
+flush privileges; 
+
+

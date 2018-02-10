@@ -1,0 +1,84 @@
+游戏上线
+
+线上添加对应的IP
+对应游戏的IP
+
+vi /etc/sysconfig/network-scripts/ifcfg-br1  # 需要重启才生效（不要重启，用 ip addr 添加一个临时ip 这样配置文件里有，临时也有，重启系统后也有）
+
+#hzmj
+IPADDR4=192.168.20.164
+PREFIX4=24
+# 名称 ip ip编号 掩码编号
+
+ip addr add 192.168.20.164/24 dev br1
+
+添加对应游戏的 docker 容器
+#创建数据卷gameid为游戏标号，比如xz,small
+mkdir -p /data/mysql-backup-data/${gameid} /var/lib/docker-mysql/${gameid}    #按服务的优先级来决定使用机械盘或固态盘
+cp -a  /etc/docker-mysql-config/${gameid}.cnf /etc/docker-mysql-config/${gameid}.cnf  # 拷贝一个现有的配置文件
+
+#需要/data
+docker run --detach -v /tmp:/tmp:rw -v /var/lib/docker-mysql/${gameid}:/var/lib/mysql:rw -v /data/mysql-backup-data/${gameid}:/data:rw -v /etc/docker-mysql-config/${gameid}.cnf:/etc/my.cnf:ro --name ${gameid}-data alpine /bin/sh
+
+#映射IP地址 启动数据库  # 使用内存依据配置文件里的cache大小来决定
+docker run --detach --memory 8g --volumes-from ${gameid}-data --name ${gameid} -h ${gameid} -p 192.168.20.xx:3306:3306 weskiller/mysql:percona-5.6
+
+# 在数据库中新建一个用户
+grant all privileges on *.* to pgame@'%' identified  by 'xxxx';
+grant all privileges on *.* to sv_user@'%' identified  by 'xxxx';
+flush privileges; 
+
+
+将下的数据对应的表结构导入线上
+mysqldump -d --databases `mysql -BN -e "show databases like '%hzmj%'"`|mysql -upgame -h192.168.20.164 -p
+
+创建数据备份脚本（20.16）
+
+/root/scripts/backup/config
+/root/scripts/backup/config/mysql-backup-list
+
+/root/scripts/backup/config/
+cp -a xxx xxx  #新游戏脚本
+
+#创建对应备份数据库（20.21）
+show databases like '%mj_logs_backup1%';
+
+create database if not exists phzmj_logs_backup1;
+
+
+阿里云高防
+
+用户添加
+	查看服务器负载，决定游戏部署
+	在部署服务器上添加游戏对应用户名称
+	设置默认游戏用户密码
+
+游戏列表添加(20.16)
+	/usr/local/zabbix/html/proxy
+	gamelist
+
+	添加对应服务器
+	添加对应游戏
+
+配置keepalived (20.21  20.20)
+	/etc/keepalived/instance/scripts
+	./add_instance.sh all
+
+重新加载 keepalived 配置文件
+	systemctl reload keepalived
+	ipvsadm -Ln|grep 7980
+	
+阿里云线上高防端口
+	DDoS 高防IP
+	添加对应游戏的端口规则
+
+
+
+
+
+
+
+
+
+
+
